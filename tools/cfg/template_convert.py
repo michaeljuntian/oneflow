@@ -5,9 +5,11 @@ import filecmp
 from shutil import copyfile, rmtree
 from jinja2 import Environment, FileSystemLoader
 import util.proto_reflect_util as proto_reflect_util
+from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-project_build", "--project_build_dir", type=str, required=True)
+parser.add_argument("-project_src", "--project_src_dir", type=str, required=True)
 parser.add_argument("-cfg_workspace", "--cfg_workspace_dir", type=str, required=True)
 parser.add_argument("-proto_files", "--proto_file_list", type=str, required=True)
 parser.add_argument(
@@ -18,7 +20,8 @@ args = parser.parse_args()
 
 sys.path.insert(0, args.of_cfg_proto_python_dir)
 
-template_dir = os.path.dirname(os.path.abspath(__file__)) + "/template"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+template_dir = SCRIPT_DIR + "/template"
 
 
 def JinjaRender(module, filename, **kwargs):
@@ -108,6 +111,7 @@ def convert_pybind(
 
 def render_template(proto_file_list, generated_file_list):
     for proto_file in proto_file_list:
+        asb_proto_file = args.project_src_dir + "/" + proto_file
         rel_proto_file_path, proto_file_name = os.path.split(proto_file)
 
         proto_py_file_path = args.of_cfg_proto_python_dir + "/" + rel_proto_file_path
@@ -142,9 +146,42 @@ def render_template(proto_file_list, generated_file_list):
             proto_file_name[:-6],
         )
 
-        convert_hpp(dst_hpp_path, module=proto_module)
-        convert_cpp(dst_cpp_path, module=proto_module)
-        convert_pybind(dst_pybind_path, module=proto_module)
+        if (
+            not os.path.exists(dst_hpp_path)
+            or os.stat(template_dir + "/template.cfg.h").st_mtime
+            - os.stat(dst_hpp_path).st_mtime
+            > 1
+            or os.stat(SCRIPT_DIR + "/util/proto_reflect_util.py").st_mtime
+            - os.stat(dst_hpp_path).st_mtime
+            > 1
+            or os.stat(asb_proto_file).st_mtime - os.stat(dst_hpp_path).st_mtime > 1
+        ):
+            Path(dst_hpp_path).touch()
+            convert_hpp(dst_hpp_path, module=proto_module)
+        if (
+            not os.path.exists(dst_cpp_path)
+            or os.stat(template_dir + "/template.cfg.cpp").st_mtime
+            - os.stat(dst_cpp_path).st_mtime
+            > 1
+            or os.stat(SCRIPT_DIR + "/util/proto_reflect_util.py").st_mtime
+            - os.stat(dst_cpp_path).st_mtime
+            > 1
+            or os.stat(asb_proto_file).st_mtime - os.stat(dst_cpp_path).st_mtime > 1
+        ):
+            Path(dst_cpp_path).touch()
+            convert_cpp(dst_cpp_path, module=proto_module)
+        if (
+            not os.path.exists(dst_pybind_path)
+            or os.stat(template_dir + "/template.cfg.pybind.cpp").st_mtime
+            - os.stat(dst_pybind_path).st_mtime
+            > 1
+            or os.stat(SCRIPT_DIR + "/util/proto_reflect_util.py").st_mtime
+            - os.stat(dst_pybind_path).st_mtime
+            > 1
+            or os.stat(asb_proto_file).st_mtime - os.stat(dst_pybind_path).st_mtime > 1
+        ):
+            Path(dst_pybind_path).touch()
+            convert_pybind(dst_pybind_path, module=proto_module)
         generated_file_list.append(dst_hpp_path)
         generated_file_list.append(dst_cpp_path)
         generated_file_list.append(dst_pybind_path)
@@ -174,7 +211,8 @@ def main():
         if os.path.exists(file_name):
             os.remove(file_name)
 
-    rmtree(args.cfg_workspace_dir)
+    if os.path.exists(args.cfg_workspace_dir):
+        rmtree(args.cfg_workspace_dir)
 
 
 if __name__ == "__main__":

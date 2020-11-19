@@ -64,7 +64,7 @@ function(GENERATE_CFG_AND_PYBIND11_CPP SRCS HDRS PYBIND_SRCS ROOT_DIR)
     COMMAND ${Python_EXECUTABLE} ${TEMPLATE_CONVERT_PYTHON_SCRIPT}
       --of_cfg_proto_python_dir=${of_cfg_proto_python_dir}
       --project_build_dir=${PROJECT_BINARY_DIR} --cfg_workspace_dir=${cfg_workspace_dir}
-      --proto_file_list="${ALL_CFG_CONVERT_PROTO}"
+      --proto_file_list="${ALL_CFG_CONVERT_PROTO}" --project_src_dir=${PROJECT_SOURCE_DIR}
     DEPENDS ${Python_EXECUTABLE} of_protoobj
   )
 
