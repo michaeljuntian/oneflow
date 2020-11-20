@@ -1,6 +1,7 @@
 import os
 import argparse
 from shutil import copyfile
+import time
 
 
 parser = argparse.ArgumentParser()
@@ -26,6 +27,7 @@ def copy_proto_files(src_proto_files, of_proto_python_dir, dst_proto_python_dir)
 
 
 def main():
+    start = time.time()
     src_proto_files = args.src_proto_files.split(" ")
     # copy _pb2.py files
     copy_proto_files(
@@ -41,6 +43,7 @@ def main():
             if not os.path.exists(init_file_name):
                 init_file = open(init_file_name, "w")
                 init_file.close
+    print("Copy Time: %f s" % (time.time() - start))
 
 
 if __name__ == "__main__":

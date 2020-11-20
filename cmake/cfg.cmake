@@ -18,6 +18,11 @@ execute_process(
     --get_message_type=pybind_registry_cc
   OUTPUT_VARIABLE PYBIND_REGISTRY_CC)
 
+execute_process( 
+  COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tools/cfg/generate_cfg_head_dir_and_convert_src.py
+    --get_message_type=template_files
+  OUTPUT_VARIABLE TEMPLATE_FILES)
+
 include_directories(${CFG_INCLUDE_DIR})
 
 function(GENERATE_CFG_AND_PYBIND11_CPP SRCS HDRS PYBIND_SRCS ROOT_DIR)
@@ -57,17 +62,6 @@ function(GENERATE_CFG_AND_PYBIND11_CPP SRCS HDRS PYBIND_SRCS ROOT_DIR)
   set(of_cfg_proto_python_dir "${PROJECT_BINARY_DIR}/of_cfg_proto_python")
   set(cfg_workspace_dir "${PROJECT_BINARY_DIR}/cfg_workspace")
 
-  add_custom_target(copy_and_render_pyproto ALL
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${of_cfg_proto_python_dir}"
-    COMMAND ${Python_EXECUTABLE} ${COPY_PYPROTO_PYTHON_SCRIPT} --of_proto_python_dir=${of_proto_python_dir}
-      --src_proto_files="${ALL_CFG_CONVERT_PROTO}" --dst_proto_python_dir=${of_cfg_proto_python_dir}
-    COMMAND ${Python_EXECUTABLE} ${TEMPLATE_CONVERT_PYTHON_SCRIPT}
-      --of_cfg_proto_python_dir=${of_cfg_proto_python_dir}
-      --project_build_dir=${PROJECT_BINARY_DIR} --cfg_workspace_dir=${cfg_workspace_dir}
-      --proto_file_list="${ALL_CFG_CONVERT_PROTO}" --project_src_dir=${PROJECT_SOURCE_DIR}
-    DEPENDS ${Python_EXECUTABLE} of_protoobj
-  )
-
   foreach(FIL ${ALL_CFG_CONVERT_PROTO})
     set(ABS_FIL ${ROOT_DIR}/${FIL})
     get_filename_component(FIL_WE ${FIL} NAME_WE)
@@ -77,17 +71,26 @@ function(GENERATE_CFG_AND_PYBIND11_CPP SRCS HDRS PYBIND_SRCS ROOT_DIR)
     set(CFG_CPP_FIL ${CMAKE_CURRENT_BINARY_DIR}/${REL_DIR}/${FIL_WE}.cfg.cpp)
     set(CFG_PYBIND_FIL ${CMAKE_CURRENT_BINARY_DIR}/${REL_DIR}/${FIL_WE}.cfg.pybind.cpp)
     
-    # rule to make target ${CFG_HPP_FIL} for of_cfgobj
-    add_custom_command(
-      OUTPUT
-        "${CFG_CPP_FIL}"
-      DEPENDS copy_and_render_pyproto
-      VERBATIM)
 
-    list(APPEND ${HDRS} ${CFG_HPP_FIL})
-    list(APPEND ${SRCS} ${CFG_CPP_FIL})
-    list(APPEND ${PYBIND_SRCS} ${CFG_PYBIND_FIL})
+    list(APPEND ${HDRS} "${CFG_HPP_FIL}")
+    list(APPEND ${SRCS} "${CFG_CPP_FIL}")
+    list(APPEND ${PYBIND_SRCS} "${CFG_PYBIND_FIL}")
   endforeach()
+  string(REPLACE ";" " " CFG_CONVERT_PROTOS "${ALL_CFG_CONVERT_PROTO}")
+  
+  add_custom_command(
+    OUTPUT ${${SRCS}}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${of_cfg_proto_python_dir}"
+    COMMAND ${Python_EXECUTABLE} ${COPY_PYPROTO_PYTHON_SCRIPT} --of_proto_python_dir=${of_proto_python_dir}
+      --src_proto_files=${CFG_CONVERT_PROTOS} --dst_proto_python_dir=${of_cfg_proto_python_dir}
+    COMMAND ${Python_EXECUTABLE} ${TEMPLATE_CONVERT_PYTHON_SCRIPT}
+      --of_cfg_proto_python_dir=${of_cfg_proto_python_dir}
+      --project_build_dir=${PROJECT_BINARY_DIR} --cfg_workspace_dir=${cfg_workspace_dir}
+      --proto_file_list=${CFG_CONVERT_PROTOS} --project_src_dir=${PROJECT_SOURCE_DIR}
+    DEPENDS ${Python_EXECUTABLE} of_protoobj ${TEMPLATE_FILES} ${ALL_CFG_CONVERT_PROTO}
+    COMMENT "Running CFG Generator..."
+    VERBATIM
+  )
 
   set_source_files_properties(${${SRCS}} ${${HDRS}} ${${PYBIND_SRCS}} PROPERTIES GENERATED TRUE)
   set(${SRCS} ${${SRCS}} PARENT_SCOPE)

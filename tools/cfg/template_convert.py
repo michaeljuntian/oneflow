@@ -2,6 +2,7 @@ import sys
 import os
 import argparse
 import filecmp
+import time
 from shutil import copyfile, rmtree
 from jinja2 import Environment, FileSystemLoader
 import util.proto_reflect_util as proto_reflect_util
@@ -188,6 +189,7 @@ def render_template(proto_file_list, generated_file_list):
 
 
 def main():
+    start = time.time()
     proto_file_list = args.proto_file_list.split(" ")
     # get old generated cfg files
     old_cfg_files = []
@@ -213,6 +215,7 @@ def main():
 
     if os.path.exists(args.cfg_workspace_dir):
         rmtree(args.cfg_workspace_dir)
+    print("Generating Time: %f s" % (time.time() - start))
 
 
 if __name__ == "__main__":
